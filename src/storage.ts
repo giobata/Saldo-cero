@@ -7,6 +7,8 @@ export const emptyData: AppData = {
   gastos: [],
   gastosFijos: [],
   gastosFijosPagos: [],
+  ingresosFijos: [],
+  ingresosFijosPagos: [],
   yoDebo: [],
   meDeben: [],
 };

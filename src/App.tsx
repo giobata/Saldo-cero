@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AppData, Page, Transaction, Debt, GastoFijo } from './types';
+import { AppData, Page, Transaction, Debt, GastoFijo, IngresoFijo } from './types';
 import { loadData, saveData, genId, emptyData } from './storage';
 import { currentMonth } from './utils';
 import Header from './components/Header';
@@ -55,12 +55,45 @@ function App() {
     e.target.value = '';
   }
 
-  // ── Ingresos ────────────────────────────────────────────
+  // ── Ingresos ocasionales ────────────────────────────────
   const addIngreso = (t: Omit<Transaction, 'id' | 'createdAt'>) =>
     setData(d => ({ ...d, ingresos: [...d.ingresos, { ...t, id: genId(), createdAt: new Date().toISOString() }] }));
 
   const deleteIngreso = (id: string) =>
     setData(d => ({ ...d, ingresos: d.ingresos.filter(t => t.id !== id) }));
+
+  // ── Ingresos fijos ──────────────────────────────────────
+  const addIngresoFijo = (g: Omit<IngresoFijo, 'id' | 'createdAt' | 'active'>) =>
+    setData(d => ({ ...d, ingresosFijos: [...d.ingresosFijos, { ...g, id: genId(), active: true, createdAt: new Date().toISOString() }] }));
+
+  const deleteIngresoFijo = (id: string) =>
+    setData(d => ({ ...d, ingresosFijos: d.ingresosFijos.filter(g => g.id !== id) }));
+
+  const updateIngresoFijo = (id: string, updates: Partial<Pick<IngresoFijo, 'description' | 'amount'>>) =>
+    setData(d => ({ ...d, ingresosFijos: d.ingresosFijos.map(g => g.id === id ? { ...g, ...updates } : g) }));
+
+  const toggleIngresoFijoPago = (ingresoFijoId: string, month: string) =>
+    setData(d => {
+      const existing = d.ingresosFijosPagos.find(p => p.ingresoFijoId === ingresoFijoId && p.month === month);
+      if (existing) {
+        return {
+          ...d,
+          ingresosFijosPagos: d.ingresosFijosPagos.map(p =>
+            p.id === existing.id ? { ...p, received: !p.received } : p
+          ),
+        };
+      }
+      return {
+        ...d,
+        ingresosFijosPagos: [...d.ingresosFijosPagos, {
+          id: genId(),
+          ingresoFijoId,
+          month,
+          received: true,
+          createdAt: new Date().toISOString(),
+        }],
+      };
+    });
 
   // ── Gastos ocasionales ──────────────────────────────────
   const addGasto = (t: Omit<Transaction, 'id' | 'createdAt'>) =>
@@ -127,7 +160,21 @@ function App() {
       case 'dashboard':
         return <Dashboard data={data} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />;
       case 'ingresos':
-        return <Ingresos ingresos={data.ingresos} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} onAdd={addIngreso} onDelete={deleteIngreso} />;
+        return (
+          <Ingresos
+            ingresos={data.ingresos}
+            ingresosFijos={data.ingresosFijos}
+            ingresosFijosPagos={data.ingresosFijosPagos}
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
+            onAdd={addIngreso}
+            onDelete={deleteIngreso}
+            onAddIngresoFijo={addIngresoFijo}
+            onDeleteIngresoFijo={deleteIngresoFijo}
+            onUpdateIngresoFijo={updateIngresoFijo}
+            onToggleIngresoFijoPago={toggleIngresoFijoPago}
+          />
+        );
       case 'gastos':
         return (
           <Gastos

@@ -34,11 +34,29 @@ export interface GastoFijoPago {
   createdAt: string;
 }
 
+export interface IngresoFijo {
+  id: string;
+  description: string;
+  amount: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface IngresoFijoPago {
+  id: string;
+  ingresoFijoId: string;
+  month: string; // YYYY-MM
+  received: boolean;
+  createdAt: string;
+}
+
 export interface AppData {
   ingresos: Transaction[];
   gastos: Transaction[];
   gastosFijos: GastoFijo[];
   gastosFijosPagos: GastoFijoPago[];
+  ingresosFijos: IngresoFijo[];
+  ingresosFijosPagos: IngresoFijoPago[];
   yoDebo: Debt[];
   meDeben: Debt[];
 }

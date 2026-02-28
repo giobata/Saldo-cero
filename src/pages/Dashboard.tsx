@@ -9,9 +9,17 @@ interface Props {
 }
 
 export default function Dashboard({ data, selectedMonth, onMonthChange }: Props) {
-  const totalIngresos = data.ingresos
+  const totalIngresosOcasionales = data.ingresos
     .filter(t => t.date.startsWith(selectedMonth))
     .reduce((s, t) => s + t.amount, 0);
+
+  const totalIngresosFijos = data.ingresosFijos
+    .filter(g => g.active && data.ingresosFijosPagos.some(
+      p => p.ingresoFijoId === g.id && p.month === selectedMonth && p.received
+    ))
+    .reduce((s, g) => s + g.amount, 0);
+
+  const totalIngresos = totalIngresosOcasionales + totalIngresosFijos;
 
   const totalGastosOcasionales = data.gastos
     .filter(t => t.date.startsWith(selectedMonth))
