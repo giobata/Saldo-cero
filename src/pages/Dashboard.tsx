@@ -13,9 +13,17 @@ export default function Dashboard({ data, selectedMonth, onMonthChange }: Props)
     .filter(t => t.date.startsWith(selectedMonth))
     .reduce((s, t) => s + t.amount, 0);
 
-  const totalGastos = data.gastos
+  const totalGastosOcasionales = data.gastos
     .filter(t => t.date.startsWith(selectedMonth))
     .reduce((s, t) => s + t.amount, 0);
+
+  const totalGastosFijos = data.gastosFijos
+    .filter(g => g.active && data.gastosFijosPagos.some(
+      p => p.gastoFijoId === g.id && p.month === selectedMonth && p.paid
+    ))
+    .reduce((s, g) => s + g.amount, 0);
+
+  const totalGastos = totalGastosOcasionales + totalGastosFijos;
 
   const saldo = totalIngresos - totalGastos;
 

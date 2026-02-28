@@ -5,6 +5,8 @@ const KEY = 'saldo-cero-v1';
 export const emptyData: AppData = {
   ingresos: [],
   gastos: [],
+  gastosFijos: [],
+  gastosFijosPagos: [],
   yoDebo: [],
   meDeben: [],
 };
@@ -12,10 +14,11 @@ export const emptyData: AppData = {
 export function loadData(): AppData {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyData;
-    return JSON.parse(raw) as AppData;
+    if (!raw) return { ...emptyData };
+    const parsed = JSON.parse(raw) as Partial<AppData>;
+    return { ...emptyData, ...parsed };
   } catch {
-    return emptyData;
+    return { ...emptyData };
   }
 }
 
