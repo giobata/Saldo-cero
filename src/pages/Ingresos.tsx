@@ -1,30 +1,58 @@
 import { useState } from 'react';
-import { Transaction } from '../types';
+import { Transaction, IngresoFijo, IngresoFijoPago } from '../types';
 import { formatCOP, formatDate, today } from '../utils';
 import MonthSelector from '../components/MonthSelector';
 import Modal from '../components/Modal';
 
 interface Props {
   ingresos: Transaction[];
+  ingresosFijos: IngresoFijo[];
+  ingresosFijosPagos: IngresoFijoPago[];
   selectedMonth: string;
   onMonthChange: (m: string) => void;
   onAdd: (t: Omit<Transaction, 'id' | 'createdAt'>) => void;
   onDelete: (id: string) => void;
+  onAddIngresoFijo: (g: Omit<IngresoFijo, 'id' | 'createdAt' | 'active'>) => void;
+  onDeleteIngresoFijo: (id: string) => void;
+  onUpdateIngresoFijo: (id: string, updates: Partial<Pick<IngresoFijo, 'description' | 'amount'>>) => void;
+  onToggleIngresoFijoPago: (ingresoFijoId: string, month: string) => void;
 }
 
-export default function Ingresos({ ingresos, selectedMonth, onMonthChange, onAdd, onDelete }: Props) {
-  const [open, setOpen] = useState(false);
+export default function Ingresos({
+  ingresos, ingresosFijos, ingresosFijosPagos,
+  selectedMonth, onMonthChange,
+  onAdd, onDelete,
+  onAddIngresoFijo, onDeleteIngresoFijo, onUpdateIngresoFijo, onToggleIngresoFijoPago,
+}: Props) {
+  // Ocasional modal
+  const [openOcasional, setOpenOcasional] = useState(false);
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(today);
 
-  const filtered = ingresos
+  // Fijo modal
+  const [openFijo, setOpenFijo] = useState(false);
+  const [editingFijo, setEditingFijo] = useState<IngresoFijo | null>(null);
+  const [fijoDesc, setFijoDesc] = useState('');
+  const [fijoAmount, setFijoAmount] = useState('');
+
+  const activeFijos = ingresosFijos.filter(g => g.active);
+
+  const isReceived = (id: string) =>
+    ingresosFijosPagos.some(p => p.ingresoFijoId === id && p.month === selectedMonth && p.received);
+
+  const ocasionales = ingresos
     .filter(t => t.date.startsWith(selectedMonth))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const total = filtered.reduce((s, t) => s + t.amount, 0);
+  const totalFijosRecibidos = activeFijos
+    .filter(g => isReceived(g.id))
+    .reduce((s, g) => s + g.amount, 0);
 
-  function handleSubmit(e: React.FormEvent) {
+  const totalOcasionales = ocasionales.reduce((s, t) => s + t.amount, 0);
+  const total = totalFijosRecibidos + totalOcasionales;
+
+  function handleSubmitOcasional(e: React.FormEvent) {
     e.preventDefault();
     const num = parseFloat(amount.replace(/[.,]/g, ''));
     if (!desc.trim() || isNaN(num) || num <= 0) return;
@@ -32,14 +60,45 @@ export default function Ingresos({ ingresos, selectedMonth, onMonthChange, onAdd
     setDesc('');
     setAmount('');
     setDate(today());
-    setOpen(false);
+    setOpenOcasional(false);
   }
+
+  function handleOpenAddFijo() {
+    setEditingFijo(null);
+    setFijoDesc('');
+    setFijoAmount('');
+    setOpenFijo(true);
+  }
+
+  function handleOpenEditFijo(g: IngresoFijo) {
+    setEditingFijo(g);
+    setFijoDesc(g.description);
+    setFijoAmount(String(g.amount));
+    setOpenFijo(true);
+  }
+
+  function handleSubmitFijo(e: React.FormEvent) {
+    e.preventDefault();
+    const num = parseFloat(fijoAmount.replace(/[.,]/g, ''));
+    if (!fijoDesc.trim() || isNaN(num) || num <= 0) return;
+    if (editingFijo) {
+      onUpdateIngresoFijo(editingFijo.id, { description: fijoDesc.trim(), amount: num });
+    } else {
+      onAddIngresoFijo({ description: fijoDesc.trim(), amount: num });
+    }
+    setFijoDesc('');
+    setFijoAmount('');
+    setEditingFijo(null);
+    setOpenFijo(false);
+  }
+
+  const receivedCount = activeFijos.filter(g => isReceived(g.id)).length;
 
   return (
     <div>
       <MonthSelector value={selectedMonth} onChange={onMonthChange} />
 
-      {filtered.length > 0 && (
+      {total > 0 && (
         <div style={{ padding: '8px 16px 0' }}>
           <div className="summary-card">
             <div className="summary-card-label">Total del mes</div>
@@ -48,20 +107,106 @@ export default function Ingresos({ ingresos, selectedMonth, onMonthChange, onAdd
         </div>
       )}
 
-      <div className="section-title">
-        {filtered.length > 0 ? `${filtered.length} registro${filtered.length !== 1 ? 's' : ''}` : 'Sin registros'}
+      {/* ── Mensuales ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 8px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
+          Mensuales{activeFijos.length > 0 && ` · ${receivedCount}/${activeFijos.length} recibidos`}
+        </div>
+        <button
+          onClick={handleOpenAddFijo}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 13, fontWeight: 600, padding: '4px 0' }}
+        >
+          + Agregar
+        </button>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <p>No hay ingresos este mes.</p>
+      {activeFijos.length === 0 ? (
+        <div style={{ padding: '4px 16px 8px', color: 'var(--text-dim)', fontSize: 13 }}>
+          Agrega los ingresos que se repiten cada mes.
         </div>
       ) : (
         <div className="list">
-          {filtered.map(t => (
+          {activeFijos.map(g => {
+            const received = isReceived(g.id);
+            return (
+              <div
+                key={g.id}
+                className="entry-card"
+                style={{ opacity: received ? 0.55 : 1 }}
+              >
+                <button
+                  onClick={() => onToggleIngresoFijoPago(g.id, selectedMonth)}
+                  aria-label={received ? 'Marcar como pendiente' : 'Marcar como recibido'}
+                  style={{
+                    background: 'none',
+                    border: `2px solid ${received ? 'var(--green)' : 'var(--border)'}`,
+                    borderRadius: '50%',
+                    width: 28,
+                    height: 28,
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: received ? 'var(--green)' : 'transparent',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                >
+                  {received && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+                <div className="entry-body">
+                  <div
+                    className="entry-desc"
+                    style={{ textDecoration: received ? 'line-through' : 'none' }}
+                  >
+                    {g.description}
+                  </div>
+                </div>
+                <div className="entry-right">
+                  <div
+                    className="entry-amount"
+                    style={{ color: received ? 'var(--text-dim)' : 'var(--green)' }}
+                  >
+                    {formatCOP(g.amount)}
+                  </div>
+                  <div className="entry-actions">
+                    <button className="icon-btn" onClick={() => handleOpenEditFijo(g)} aria-label="Editar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button className="icon-btn" onClick={() => onDeleteIngresoFijo(g.id)} aria-label="Eliminar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Ocasionales ── */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 16px 8px', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
+          Ocasionales{ocasionales.length > 0 && ` · ${ocasionales.length}`}
+        </div>
+      </div>
+
+      {ocasionales.length === 0 ? (
+        <div style={{ padding: '4px 16px 8px', color: 'var(--text-dim)', fontSize: 13 }}>
+          Sin ingresos ocasionales este mes.
+        </div>
+      ) : (
+        <div className="list">
+          {ocasionales.map(t => (
             <div className="entry-card" key={t.id}>
               <div className="entry-icon green">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5">
@@ -87,19 +232,21 @@ export default function Ingresos({ ingresos, selectedMonth, onMonthChange, onAdd
         </div>
       )}
 
-      <button className="fab" onClick={() => setOpen(true)} aria-label="Agregar ingreso">
+      {/* FAB: nuevo ocasional */}
+      <button className="fab" onClick={() => setOpenOcasional(true)} aria-label="Agregar ingreso ocasional">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
         </svg>
       </button>
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} title="Nuevo Ingreso">
-        <form className="form" onSubmit={handleSubmit}>
+      {/* Modal ocasional */}
+      <Modal isOpen={openOcasional} onClose={() => setOpenOcasional(false)} title="Ingreso Ocasional">
+        <form className="form" onSubmit={handleSubmitOcasional}>
           <div className="field">
             <label>Descripción</label>
             <input
               type="text"
-              placeholder="Ej: Sueldo, freelance, venta..."
+              placeholder="Ej: Freelance, venta, bono..."
               value={desc}
               onChange={e => setDesc(e.target.value)}
               autoFocus
@@ -126,8 +273,44 @@ export default function Ingresos({ ingresos, selectedMonth, onMonthChange, onAdd
             />
           </div>
           <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>Cancelar</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setOpenOcasional(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal fijo */}
+      <Modal
+        isOpen={openFijo}
+        onClose={() => { setOpenFijo(false); setEditingFijo(null); }}
+        title={editingFijo ? 'Editar mensual' : 'Nuevo ingreso mensual'}
+      >
+        <form className="form" onSubmit={handleSubmitFijo}>
+          <div className="field">
+            <label>Descripción</label>
+            <input
+              type="text"
+              placeholder="Ej: Salario, arriendo local, pensión..."
+              value={fijoDesc}
+              onChange={e => setFijoDesc(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="field">
+            <label>Monto (COP)</label>
+            <input
+              type="number"
+              placeholder="0"
+              value={fijoAmount}
+              onChange={e => setFijoAmount(e.target.value)}
+              min="0"
+              step="1000"
+              inputMode="numeric"
+            />
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => { setOpenFijo(false); setEditingFijo(null); }}>Cancelar</button>
+            <button type="submit" className="btn btn-primary">{editingFijo ? 'Actualizar' : 'Guardar'}</button>
           </div>
         </form>
       </Modal>
