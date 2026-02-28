@@ -37,11 +37,17 @@ export default function Dashboard({ data, selectedMonth, onMonthChange }: Props)
 
   const totalYoDebo = data.yoDebo
     .filter(d => !d.paid)
-    .reduce((s, d) => s + d.amount, 0);
+    .reduce((s, d) => {
+      const abonado = (d.abonos ?? []).reduce((a, b) => a + b.amount, 0);
+      return s + Math.max(0, d.amount - abonado);
+    }, 0);
 
   const totalMeDeben = data.meDeben
     .filter(d => !d.paid)
-    .reduce((s, d) => s + d.amount, 0);
+    .reduce((s, d) => {
+      const abonado = (d.abonos ?? []).reduce((a, b) => a + b.amount, 0);
+      return s + Math.max(0, d.amount - abonado);
+    }, 0);
 
   const saldoClass = saldo > 0 ? 'positive' : saldo < 0 ? 'negative' : '';
 

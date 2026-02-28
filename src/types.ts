@@ -8,6 +8,13 @@ export interface Transaction {
   createdAt: string;
 }
 
+export interface Abono {
+  id: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  createdAt: string;
+}
+
 export interface Debt {
   id: string;
   person: string;
@@ -15,6 +22,7 @@ export interface Debt {
   amount: number;
   date: string; // YYYY-MM-DD
   paid: boolean;
+  abonos?: Abono[];
   createdAt: string;
 }
 

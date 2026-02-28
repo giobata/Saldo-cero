@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AppData, Page, Transaction, Debt, GastoFijo, IngresoFijo } from './types';
+import { AppData, Page, Transaction, Debt, GastoFijo, IngresoFijo, Abono } from './types';
 import { loadData, saveData, genId, emptyData } from './storage';
 import { currentMonth } from './utils';
 import Header from './components/Header';
@@ -137,7 +137,7 @@ function App() {
 
   // ── Yo debo ─────────────────────────────────────────────
   const addYoDebo = (debt: Omit<Debt, 'id' | 'createdAt' | 'paid'>) =>
-    setData(d => ({ ...d, yoDebo: [...d.yoDebo, { ...debt, id: genId(), paid: false, createdAt: new Date().toISOString() }] }));
+    setData(d => ({ ...d, yoDebo: [...d.yoDebo, { ...debt, id: genId(), paid: false, abonos: [], createdAt: new Date().toISOString() }] }));
 
   const toggleYoDebo = (id: string) =>
     setData(d => ({ ...d, yoDebo: d.yoDebo.map(x => x.id === id ? { ...x, paid: !x.paid } : x) }));
@@ -145,15 +145,39 @@ function App() {
   const deleteYoDebo = (id: string) =>
     setData(d => ({ ...d, yoDebo: d.yoDebo.filter(x => x.id !== id) }));
 
+  const addAbonoYoDebo = (debtId: string, abono: Omit<Abono, 'id' | 'createdAt'>) =>
+    setData(d => ({
+      ...d,
+      yoDebo: d.yoDebo.map(debt => {
+        if (debt.id !== debtId) return debt;
+        const newAbono = { ...abono, id: genId(), createdAt: new Date().toISOString() };
+        const abonos = [...(debt.abonos ?? []), newAbono];
+        const totalAbonado = abonos.reduce((s, a) => s + a.amount, 0);
+        return { ...debt, abonos, paid: totalAbonado >= debt.amount ? true : debt.paid };
+      }),
+    }));
+
   // ── Me deben ────────────────────────────────────────────
   const addMeDeben = (debt: Omit<Debt, 'id' | 'createdAt' | 'paid'>) =>
-    setData(d => ({ ...d, meDeben: [...d.meDeben, { ...debt, id: genId(), paid: false, createdAt: new Date().toISOString() }] }));
+    setData(d => ({ ...d, meDeben: [...d.meDeben, { ...debt, id: genId(), paid: false, abonos: [], createdAt: new Date().toISOString() }] }));
 
   const toggleMeDeben = (id: string) =>
     setData(d => ({ ...d, meDeben: d.meDeben.map(x => x.id === id ? { ...x, paid: !x.paid } : x) }));
 
   const deleteMeDeben = (id: string) =>
     setData(d => ({ ...d, meDeben: d.meDeben.filter(x => x.id !== id) }));
+
+  const addAbonoMeDeben = (debtId: string, abono: Omit<Abono, 'id' | 'createdAt'>) =>
+    setData(d => ({
+      ...d,
+      meDeben: d.meDeben.map(debt => {
+        if (debt.id !== debtId) return debt;
+        const newAbono = { ...abono, id: genId(), createdAt: new Date().toISOString() };
+        const abonos = [...(debt.abonos ?? []), newAbono];
+        const totalAbonado = abonos.reduce((s, a) => s + a.amount, 0);
+        return { ...debt, abonos, paid: totalAbonado >= debt.amount ? true : debt.paid };
+      }),
+    }));
 
   const renderPage = () => {
     switch (page) {
@@ -192,9 +216,9 @@ function App() {
           />
         );
       case 'yo-debo':
-        return <YoDebo debts={data.yoDebo} onAdd={addYoDebo} onToggle={toggleYoDebo} onDelete={deleteYoDebo} />;
+        return <YoDebo debts={data.yoDebo} onAdd={addYoDebo} onToggle={toggleYoDebo} onDelete={deleteYoDebo} onAddAbono={addAbonoYoDebo} />;
       case 'me-deben':
-        return <MeDeben debts={data.meDeben} onAdd={addMeDeben} onToggle={toggleMeDeben} onDelete={deleteMeDeben} />;
+        return <MeDeben debts={data.meDeben} onAdd={addMeDeben} onToggle={toggleMeDeben} onDelete={deleteMeDeben} onAddAbono={addAbonoMeDeben} />;
     }
   };
 
