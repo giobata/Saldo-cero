@@ -30,6 +30,8 @@ export default function Gastos({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(today);
 
+  const [hidePaid, setHidePaid] = useState(false);
+
   // Fijo modal
   const [openFijo, setOpenFijo] = useState(false);
   const [editingFijo, setEditingFijo] = useState<GastoFijo | null>(null);
@@ -109,8 +111,18 @@ export default function Gastos({
 
       {/* ── Mensuales ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 8px' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
-          Mensuales{activeFijos.length > 0 && ` · ${paidCount}/${activeFijos.length} pagados`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
+            Mensuales{activeFijos.length > 0 && ` · ${paidCount}/${activeFijos.length} pagados`}
+          </div>
+          {paidCount > 0 && (
+            <button
+              onClick={() => setHidePaid(h => !h)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 11, padding: '2px 6px', borderRadius: 4, lineHeight: 1.4 }}
+            >
+              {hidePaid ? 'mostrar pagados' : 'ocultar pagados'}
+            </button>
+          )}
         </div>
         <button
           onClick={handleOpenAddFijo}
@@ -126,7 +138,7 @@ export default function Gastos({
         </div>
       ) : (
         <div className="list">
-          {activeFijos.map(g => {
+          {activeFijos.filter(g => !hidePaid || !isPaid(g.id)).map(g => {
             const paid = isPaid(g.id);
             return (
               <div
