@@ -36,14 +36,14 @@ export default function Gastos({
   const [fijoDesc, setFijoDesc] = useState('');
   const [fijoAmount, setFijoAmount] = useState('');
 
-  const activeFijos = gastosFijos.filter(g => g.active);
+  const activeFijos = gastosFijos.filter(g => g.active).sort((a, b) => b.amount - a.amount);
 
   const isPaid = (id: string) =>
     gastosFijosPagos.some(p => p.gastoFijoId === id && p.month === selectedMonth && p.paid);
 
   const ocasionales = gastos
     .filter(t => t.date.startsWith(selectedMonth))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => b.amount - a.amount);
 
   const totalFijosPagados = activeFijos
     .filter(g => isPaid(g.id))

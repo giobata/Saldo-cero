@@ -36,14 +36,14 @@ export default function Ingresos({
   const [fijoDesc, setFijoDesc] = useState('');
   const [fijoAmount, setFijoAmount] = useState('');
 
-  const activeFijos = ingresosFijos.filter(g => g.active);
+  const activeFijos = ingresosFijos.filter(g => g.active).sort((a, b) => b.amount - a.amount);
 
   const isReceived = (id: string) =>
     ingresosFijosPagos.some(p => p.ingresoFijoId === id && p.month === selectedMonth && p.received);
 
   const ocasionales = ingresos
     .filter(t => t.date.startsWith(selectedMonth))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => b.amount - a.amount);
 
   const totalFijosRecibidos = activeFijos
     .filter(g => isReceived(g.id))

@@ -27,8 +27,8 @@ export default function YoDebo({ debts, onAdd, onToggle, onDelete, onAddAbono }:
   const [abonoAmount, setAbonoAmount] = useState('');
   const [abonoDate, setAbonoDate] = useState(today);
 
-  const pending = debts.filter(d => !d.paid).sort((a, b) => b.date.localeCompare(a.date));
-  const paid = debts.filter(d => d.paid).sort((a, b) => b.date.localeCompare(a.date));
+  const pending = debts.filter(d => !d.paid).sort((a, b) => saldo(b) - saldo(a));
+  const paid = debts.filter(d => d.paid).sort((a, b) => b.amount - a.amount);
 
   const totalPending = pending.reduce((s, d) => s + saldo(d), 0);
 
