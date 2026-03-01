@@ -26,14 +26,11 @@ export default function Dashboard({ data, selectedMonth, onMonthChange }: Props)
     .reduce((s, t) => s + t.amount, 0);
 
   const totalGastosFijos = data.gastosFijos
-    .filter(g => g.active && data.gastosFijosPagos.some(
-      p => p.gastoFijoId === g.id && p.month === selectedMonth && p.paid
-    ))
+    .filter(g => g.active)
     .reduce((s, g) => s + g.amount, 0);
 
   const totalGastos = totalGastosOcasionales + totalGastosFijos;
 
-  // Gastos mensuales fijos aún sin pagar este mes
   const gastosFijosPendientes = data.gastosFijos
     .filter(g => g.active && !data.gastosFijosPagos.some(
       p => p.gastoFijoId === g.id && p.month === selectedMonth && p.paid
@@ -84,7 +81,7 @@ export default function Dashboard({ data, selectedMonth, onMonthChange }: Props)
 
         {gastosFijosPendientes > 0 && (
           <div className="summary-card full">
-            <div className="summary-card-label">Gastos mensuales pendientes</div>
+            <div className="summary-card-label">Falta por pagar</div>
             <div className="summary-card-amount red">{formatCOP(gastosFijosPendientes)}</div>
           </div>
         )}
