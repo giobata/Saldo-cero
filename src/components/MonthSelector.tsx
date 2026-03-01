@@ -6,7 +6,8 @@ interface Props {
 }
 
 export default function MonthSelector({ value, onChange }: Props) {
-  const isCurrentMonth = value === currentMonth();
+  const now = new Date();
+  const canGoNext = value < currentMonth() || (value === currentMonth() && now.getDate() >= 25);
 
   return (
     <div className="month-selector">
@@ -21,8 +22,8 @@ export default function MonthSelector({ value, onChange }: Props) {
       <button
         className="month-btn"
         onClick={() => onChange(nextMonth(value))}
-        disabled={isCurrentMonth}
-        style={{ opacity: isCurrentMonth ? 0.3 : 1 }}
+        disabled={!canGoNext}
+        style={{ opacity: canGoNext ? 1 : 0.3 }}
         aria-label="Mes siguiente"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
