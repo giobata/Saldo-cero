@@ -30,7 +30,7 @@ export default function Gastos({
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(today);
 
-  const [hidePaid, setHidePaid] = useState(false);
+  const [hidePaid, setHidePaid] = useState(true);
 
   // Fijo modal
   const [openFijo, setOpenFijo] = useState(false);
