@@ -93,6 +93,9 @@ export default function Gastos({
   }
 
   const paidCount = activeFijos.filter(g => isPaid(g.id)).length;
+  const [showPaid, setShowPaid] = useState(false);
+
+  const visibleFijos = showPaid ? activeFijos : activeFijos.filter(g => !isPaid(g.id));
 
   return (
     <div>
@@ -109,8 +112,18 @@ export default function Gastos({
 
       {/* ── Mensuales ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 8px' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
-          Mensuales{activeFijos.length > 0 && ` · ${paidCount}/${activeFijos.length} pagados`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
+            Mensuales{activeFijos.length > 0 && ` · ${paidCount}/${activeFijos.length} pagados`}
+          </div>
+          {paidCount > 0 && (
+            <button
+              onClick={() => setShowPaid(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}
+            >
+              {showPaid ? 'Ocultar pagados' : 'Ver pagados'}
+            </button>
+          )}
         </div>
         <button
           onClick={handleOpenAddFijo}
@@ -126,7 +139,7 @@ export default function Gastos({
         </div>
       ) : (
         <div className="list">
-          {activeFijos.map(g => {
+          {visibleFijos.map(g => {
             const paid = isPaid(g.id);
             return (
               <div
