@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppData, Page, Transaction, Debt, GastoFijo, IngresoFijo, Abono } from './types';
 import { loadData, saveData, genId, emptyData } from './storage';
 import { currentMonth } from './utils';
+import { supabase } from './supabase';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import Modal from './components/Modal';
@@ -10,18 +11,95 @@ import Ingresos from './pages/Ingresos';
 import Gastos from './pages/Gastos';
 import YoDebo from './pages/YoDebo';
 import MeDeben from './pages/MeDeben';
+import AuthPage from './AuthPage';
+import type { User } from '@supabase/supabase-js';
+
+async function fetchRemoteData(): Promise<AppData | null> {
+  const { data, error } = await supabase.from('app_data').select('data').single();
+  if (error || !data) return null;
+  return { ...emptyData, ...(data.data as Partial<AppData>) };
+}
+
+async function pushRemoteData(appData: AppData): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('app_data').upsert(
+    { user_id: user.id, data: appData, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' }
+  );
+}
 
 function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [data, setData] = useState<AppData>(loadData);
   const [page, setPage] = useState<Page>('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [openSettings, setOpenSettings] = useState(false);
   const [importMsg, setImportMsg] = useState('');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
   const importRef = useRef<HTMLInputElement>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoad = useRef(true);
+
+  // Listen for auth changes
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // When user logs in, load data from Supabase
+  useEffect(() => {
+    if (!user) return;
+    isFirstLoad.current = true;
+    fetchRemoteData().then(remote => {
+      if (remote) {
+        setData(remote);
+        saveData(remote);
+      } else {
+        // First time on this account: upload existing local data
+        pushRemoteData(loadData());
+      }
+      isFirstLoad.current = false;
+    });
+  }, [user?.id]);
+
+  // Save locally immediately + debounce sync to Supabase
+  const syncToSupabase = useCallback((appData: AppData) => {
+    if (!user || isFirstLoad.current) return;
+    saveData(appData);
+    setSyncStatus('syncing');
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      try {
+        await pushRemoteData(appData);
+        setSyncStatus('idle');
+      } catch {
+        setSyncStatus('error');
+      }
+    }, 1500);
+  }, [user]);
 
   useEffect(() => {
-    saveData(data);
+    if (!user) {
+      saveData(data);
+      return;
+    }
+    syncToSupabase(data);
   }, [data]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setOpenSettings(false);
+  }
 
   // ── Export ──────────────────────────────────────────────
   function handleExport() {
@@ -222,9 +300,12 @@ function App() {
     }
   };
 
+  if (!authReady) return null;
+  if (!user) return <AuthPage />;
+
   return (
     <div className="app">
-      <Header page={page} onSettings={() => setOpenSettings(true)} />
+      <Header page={page} onSettings={() => setOpenSettings(true)} syncStatus={syncStatus} />
       <main className="main-content">
         {renderPage()}
       </main>
@@ -233,7 +314,7 @@ function App() {
       <Modal isOpen={openSettings} onClose={() => setOpenSettings(false)} title="Datos">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
-            Exportá tus datos como backup. Si limpias la caché del navegador, podés restaurarlos importando el archivo.
+            Sesión iniciada como <strong>{user.email}</strong>. Tus datos se sincronizan automáticamente entre dispositivos.
           </p>
 
           <button className="btn btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -276,6 +357,12 @@ function App() {
               {importMsg}
             </p>
           )}
+
+          <div className="divider" style={{ marginTop: 4 }} />
+
+          <button className="btn btn-secondary" onClick={handleLogout} style={{ color: 'var(--red)', borderColor: 'var(--red-dim)' }}>
+            Cerrar sesión
+          </button>
         </div>
       </Modal>
     </div>

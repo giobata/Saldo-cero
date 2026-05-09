@@ -11,12 +11,21 @@ const titles: Record<Page, string> = {
 interface Props {
   page: Page;
   onSettings: () => void;
+  syncStatus?: 'idle' | 'syncing' | 'error';
 }
 
-export default function Header({ page, onSettings }: Props) {
+export default function Header({ page, onSettings, syncStatus }: Props) {
   return (
     <header className="header" style={{ justifyContent: 'space-between' }}>
-      <h1 className="header-title">{titles[page]}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h1 className="header-title">{titles[page]}</h1>
+        {syncStatus === 'syncing' && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>sincronizando…</span>
+        )}
+        {syncStatus === 'error' && (
+          <span style={{ fontSize: 11, color: 'var(--red)' }}>sin conexión</span>
+        )}
+      </div>
       <button
         onClick={onSettings}
         aria-label="Configuración"
