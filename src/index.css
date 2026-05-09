@@ -564,7 +564,8 @@ html, body {
 
   .main-content {
     padding-bottom: 80px;
-    width: 100%;
+    width: 80%;
+    margin: 0 auto;
   }
 
   .fab {
