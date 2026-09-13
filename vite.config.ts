@@ -7,6 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        importScripts: ['/push-sw.js'],
+        globIgnores: ['**/push-sw.js'],
+      },
       manifest: {
         name: 'Saldo Cero',
         short_name: 'Saldo Cero',

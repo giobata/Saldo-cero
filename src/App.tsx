@@ -14,6 +14,7 @@ import MeDeben from './pages/MeDeben';
 import AuthPage from './AuthPage';
 import LockScreen from './LockScreen';
 import { isBiometricAvailable, isBiometricEnabled, enrollBiometric, disableBiometric } from './biometric';
+import { pushSupported, isPushEnabled, enablePush, disablePush } from './push';
 import type { User } from '@supabase/supabase-js';
 
 async function fetchRemoteData(): Promise<AppData | null> {
@@ -44,6 +45,9 @@ function App() {
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioMsg, setBioMsg] = useState('');
+  const [pushAvailable] = useState(pushSupported);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushMsg, setPushMsg] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstLoad = useRef(true);
@@ -94,6 +98,14 @@ function App() {
     setLocked(enabled);
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) {
+      setPushEnabled(false);
+      return;
+    }
+    isPushEnabled().then(setPushEnabled);
+  }, [user?.id]);
+
   // Save locally immediately + debounce sync to Supabase
   const syncToSupabase = useCallback((appData: AppData) => {
     if (!user || isFirstLoad.current) return;
@@ -140,6 +152,25 @@ function App() {
     setBioEnabled(false);
     setBioMsg('Desbloqueo biométrico desactivado.');
     setTimeout(() => setBioMsg(''), 4000);
+  }
+
+  async function handleEnablePush() {
+    if (!user) return;
+    try {
+      await enablePush(user.id);
+      setPushEnabled(true);
+      setPushMsg('Listo, te avisaremos de los vencimientos.');
+    } catch {
+      setPushMsg('No se pudo activar. Revisá que hayas dado permiso de notificaciones.');
+    }
+    setTimeout(() => setPushMsg(''), 4000);
+  }
+
+  async function handleDisablePush() {
+    await disablePush();
+    setPushEnabled(false);
+    setPushMsg('Notificaciones desactivadas.');
+    setTimeout(() => setPushMsg(''), 4000);
   }
 
   // ── Export ──────────────────────────────────────────────
@@ -425,6 +456,34 @@ function App() {
               {bioMsg && (
                 <p style={{ fontSize: 13, textAlign: 'center', color: bioMsg.includes('No se pudo') ? 'var(--red)' : 'var(--green)' }}>
                   {bioMsg}
+                </p>
+              )}
+            </>
+          )}
+
+          {pushAvailable && (
+            <>
+              <div className="divider" style={{ marginTop: 4 }} />
+
+              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Recibí un aviso cuando se acerque el vencimiento de un gasto mensual.
+              </p>
+
+              <button
+                className="btn btn-secondary"
+                onClick={pushEnabled ? handleDisablePush : handleEnablePush}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: pushEnabled ? 'var(--green)' : undefined }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.7 21a2 2 0 01-3.4 0" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {pushEnabled ? 'Notificaciones activadas' : 'Activar notificaciones'}
+              </button>
+
+              {pushMsg && (
+                <p style={{ fontSize: 13, textAlign: 'center', color: pushMsg.includes('No se pudo') ? 'var(--red)' : 'var(--green)' }}>
+                  {pushMsg}
                 </p>
               )}
             </>
