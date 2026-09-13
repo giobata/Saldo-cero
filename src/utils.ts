@@ -42,3 +42,20 @@ export function today(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
+
+export function daysInMonth(yearMonth: string): number {
+  const [year, month] = yearMonth.split('-').map(Number);
+  return new Date(year, month, 0).getDate();
+}
+
+export function dueDateOf(dueDay: number, yearMonth: string): string {
+  const day = Math.min(dueDay, daysInMonth(yearMonth));
+  return `${yearMonth}-${String(day).padStart(2, '0')}`;
+}
+
+export function daysUntilDue(dueDay: number, yearMonth: string): number {
+  const due = new Date(`${dueDateOf(dueDay, yearMonth)}T00:00:00`);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due.getTime() - start.getTime()) / 86400000);
+}

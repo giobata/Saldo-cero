@@ -187,7 +187,7 @@ function App() {
   const deleteGastoFijo = (id: string) =>
     setData(d => ({ ...d, gastosFijos: d.gastosFijos.filter(g => g.id !== id) }));
 
-  const updateGastoFijo = (id: string, updates: Partial<Pick<GastoFijo, 'description' | 'amount'>>) =>
+  const updateGastoFijo = (id: string, updates: Partial<Pick<GastoFijo, 'description' | 'amount' | 'dueDay'>>) =>
     setData(d => ({ ...d, gastosFijos: d.gastosFijos.map(g => g.id === id ? { ...g, ...updates } : g) }));
 
   const toggleGastoFijoPago = (gastoFijoId: string, month: string) =>

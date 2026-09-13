@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Transaction, GastoFijo, GastoFijoPago } from '../types';
-import { formatCOP, formatDate, today } from '../utils';
+import { formatCOP, formatDate, today, daysUntilDue } from '../utils';
 import MonthSelector from '../components/MonthSelector';
 import Modal from '../components/Modal';
 
@@ -14,8 +14,18 @@ interface Props {
   onDelete: (id: string) => void;
   onAddGastoFijo: (g: Omit<GastoFijo, 'id' | 'createdAt' | 'active'>) => void;
   onDeleteGastoFijo: (id: string) => void;
-  onUpdateGastoFijo: (id: string, updates: Partial<Pick<GastoFijo, 'description' | 'amount'>>) => void;
+  onUpdateGastoFijo: (id: string, updates: Partial<Pick<GastoFijo, 'description' | 'amount' | 'dueDay'>>) => void;
   onToggleGastoFijoPago: (gastoFijoId: string, month: string) => void;
+}
+
+function dueInfo(dueDay: number | undefined, month: string, paid: boolean) {
+  if (!dueDay) return null;
+  if (paid) return { text: `Vence el ${dueDay}`, color: 'var(--text-dim)' };
+  const d = daysUntilDue(dueDay, month);
+  if (d < 0) return { text: `Vencido hace ${-d} ${-d === 1 ? 'día' : 'días'}`, color: 'var(--red)' };
+  if (d === 0) return { text: 'Vence hoy', color: 'var(--red)' };
+  if (d <= 3) return { text: `Vence en ${d} ${d === 1 ? 'día' : 'días'}`, color: 'var(--orange)' };
+  return { text: `Vence el ${dueDay}`, color: 'var(--text-muted)' };
 }
 
 export default function Gastos({
@@ -35,8 +45,11 @@ export default function Gastos({
   const [editingFijo, setEditingFijo] = useState<GastoFijo | null>(null);
   const [fijoDesc, setFijoDesc] = useState('');
   const [fijoAmount, setFijoAmount] = useState('');
+  const [fijoDueDay, setFijoDueDay] = useState('');
 
-  const activeFijos = gastosFijos.filter(g => g.active);
+  const activeFijos = gastosFijos
+    .filter(g => g.active)
+    .sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99));
 
   const isPaid = (id: string) =>
     gastosFijosPagos.some(p => p.gastoFijoId === id && p.month === selectedMonth && p.paid);
@@ -67,6 +80,7 @@ export default function Gastos({
     setEditingFijo(null);
     setFijoDesc('');
     setFijoAmount('');
+    setFijoDueDay('');
     setOpenFijo(true);
   }
 
@@ -74,6 +88,7 @@ export default function Gastos({
     setEditingFijo(g);
     setFijoDesc(g.description);
     setFijoAmount(String(g.amount));
+    setFijoDueDay(g.dueDay ? String(g.dueDay) : '');
     setOpenFijo(true);
   }
 
@@ -81,13 +96,16 @@ export default function Gastos({
     e.preventDefault();
     const num = parseFloat(fijoAmount.replace(/[.,]/g, ''));
     if (!fijoDesc.trim() || isNaN(num) || num <= 0) return;
+    const dd = parseInt(fijoDueDay, 10);
+    const dueDay = dd >= 1 && dd <= 31 ? dd : undefined;
     if (editingFijo) {
-      onUpdateGastoFijo(editingFijo.id, { description: fijoDesc.trim(), amount: num });
+      onUpdateGastoFijo(editingFijo.id, { description: fijoDesc.trim(), amount: num, dueDay });
     } else {
-      onAddGastoFijo({ description: fijoDesc.trim(), amount: num });
+      onAddGastoFijo({ description: fijoDesc.trim(), amount: num, dueDay });
     }
     setFijoDesc('');
     setFijoAmount('');
+    setFijoDueDay('');
     setEditingFijo(null);
     setOpenFijo(false);
   }
@@ -141,6 +159,7 @@ export default function Gastos({
         <div className="list">
           {visibleFijos.map(g => {
             const paid = isPaid(g.id);
+            const due = dueInfo(g.dueDay, selectedMonth, paid);
             return (
               <div
                 key={g.id}
@@ -178,6 +197,9 @@ export default function Gastos({
                   >
                     {g.description}
                   </div>
+                  {due && (
+                    <div className="entry-date" style={{ color: due.color }}>{due.text}</div>
+                  )}
                 </div>
                 <div className="entry-right">
                   <div
@@ -318,6 +340,18 @@ export default function Gastos({
               onChange={e => setFijoAmount(e.target.value)}
               min="0"
               step="1000"
+              inputMode="numeric"
+            />
+          </div>
+          <div className="field">
+            <label>Día de vencimiento (opcional)</label>
+            <input
+              type="number"
+              placeholder="Ej: 5"
+              value={fijoDueDay}
+              onChange={e => setFijoDueDay(e.target.value)}
+              min="1"
+              max="31"
               inputMode="numeric"
             />
           </div>

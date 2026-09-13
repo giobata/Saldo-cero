@@ -31,6 +31,7 @@ export interface GastoFijo {
   description: string;
   amount: number;
   active: boolean;
+  dueDay?: number; // 1-31, dia del mes en que vence
   createdAt: string;
 }
 
