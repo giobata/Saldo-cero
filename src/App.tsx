@@ -12,6 +12,8 @@ import Gastos from './pages/Gastos';
 import YoDebo from './pages/YoDebo';
 import MeDeben from './pages/MeDeben';
 import AuthPage from './AuthPage';
+import LockScreen from './LockScreen';
+import { isBiometricAvailable, isBiometricEnabled, enrollBiometric, disableBiometric } from './biometric';
 import type { User } from '@supabase/supabase-js';
 
 async function fetchRemoteData(): Promise<AppData | null> {
@@ -38,6 +40,10 @@ function App() {
   const [openSettings, setOpenSettings] = useState(false);
   const [importMsg, setImportMsg] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [locked, setLocked] = useState(false);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioMsg, setBioMsg] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstLoad = useRef(true);
@@ -72,6 +78,22 @@ function App() {
     });
   }, [user?.id]);
 
+  useEffect(() => {
+    isBiometricAvailable().then(setBioAvailable);
+  }, []);
+
+  // Lock the app on load when biometric is enabled for this user
+  useEffect(() => {
+    if (!user) {
+      setLocked(false);
+      setBioEnabled(false);
+      return;
+    }
+    const enabled = isBiometricEnabled(user.id);
+    setBioEnabled(enabled);
+    setLocked(enabled);
+  }, [user?.id]);
+
   // Save locally immediately + debounce sync to Supabase
   const syncToSupabase = useCallback((appData: AppData) => {
     if (!user || isFirstLoad.current) return;
@@ -99,6 +121,25 @@ function App() {
   async function handleLogout() {
     await supabase.auth.signOut();
     setOpenSettings(false);
+  }
+
+  async function handleEnableBiometric() {
+    if (!user) return;
+    try {
+      await enrollBiometric(user.id, user.email ?? 'usuario');
+      setBioEnabled(true);
+      setBioMsg('Listo, ya podés desbloquear con tu huella.');
+    } catch {
+      setBioMsg('No se pudo activar. Revisá que el dispositivo tenga huella o Face ID configurado.');
+    }
+    setTimeout(() => setBioMsg(''), 4000);
+  }
+
+  function handleDisableBiometric() {
+    disableBiometric();
+    setBioEnabled(false);
+    setBioMsg('Desbloqueo biométrico desactivado.');
+    setTimeout(() => setBioMsg(''), 4000);
   }
 
   // ── Export ──────────────────────────────────────────────
@@ -302,6 +343,7 @@ function App() {
 
   if (!authReady) return null;
   if (!user) return <AuthPage />;
+  if (locked) return <LockScreen onUnlock={() => setLocked(false)} onLogout={() => { disableBiometric(); handleLogout(); }} />;
 
   return (
     <div className="app">
@@ -356,6 +398,36 @@ function App() {
             }}>
               {importMsg}
             </p>
+          )}
+
+          {bioAvailable && (
+            <>
+              <div className="divider" style={{ marginTop: 4 }} />
+
+              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Pedí huella o Face ID cada vez que abras la app en este dispositivo.
+              </p>
+
+              <button
+                className="btn btn-secondary"
+                onClick={bioEnabled ? handleDisableBiometric : handleEnableBiometric}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: bioEnabled ? 'var(--green)' : undefined }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M12 11v3a6 6 0 01-.4 2.2" strokeLinecap="round" />
+                  <path d="M8.5 20.5A10 10 0 0010 14v-2a2 2 0 114 0v2" strokeLinecap="round" />
+                  <path d="M5.6 17.6A8 8 0 007 13v-1a5 5 0 0110 0v1" strokeLinecap="round" />
+                  <path d="M4 9a8 8 0 0116 0" strokeLinecap="round" />
+                </svg>
+                {bioEnabled ? 'Desbloqueo biométrico activado' : 'Activar desbloqueo biométrico'}
+              </button>
+
+              {bioMsg && (
+                <p style={{ fontSize: 13, textAlign: 'center', color: bioMsg.includes('No se pudo') ? 'var(--red)' : 'var(--green)' }}>
+                  {bioMsg}
+                </p>
+              )}
+            </>
           )}
 
           <div className="divider" style={{ marginTop: 4 }} />
