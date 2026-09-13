@@ -9,8 +9,11 @@ function toBase64(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
 
-function fromBase64(s: string): Uint8Array {
-  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+function fromBase64(s: string): ArrayBuffer {
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
 }
 
 function read(): Enrollment | null {
